@@ -1,0 +1,33 @@
+gate.display_gate:
+  path: '/gate/gated'
+  defaults:
+    _form: '\Drupal\gate\Form\Gate'
+    _title: 'Login For Access'
+  requirements:
+    _permission: 'access content'
+
+gate.gate_admin_landing:
+  path: '/admin/config/gate'
+  defaults:
+    _form: '\Drupal\gate\Form\GateAdminLanding'
+    _title: 'Gate Administration'
+  requirements:
+    _permission: 'administer nodes'
+
+gate.gate_admin:
+  path: '/admin/config/gate/{gid}'
+  defaults:
+    _form: '\Drupal\gate\Form\GateAdmin'
+    _title: 'Gate Administration'
+  requirements:
+    _permission: 'administer nodes'
+
+gate.node_admin:
+  path: '/node/{node}/gate'
+  defaults:
+    _form: '\Drupal\gate\Form\NodeAdmin'
+    _title: 'Gate Administration'
+  requirements:
+    _permission: 'administer nodes'
+  options:
+    _admin_route: TRUE

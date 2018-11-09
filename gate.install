@@ -1,0 +1,134 @@
+<?php
+
+
+function gate_schema() {
+	$schema = array();
+
+	$schema['gate_gates'] = array(
+		'description' => 'List core gate groupings, the base to all gates',
+		'fields' => array(
+			'gid' => array(
+				'type' => 'serial',
+				'not null' => TRUE,
+			),
+			'gate_type' => array(
+				'type' => 'varchar',
+				'length' => 64,
+				'default' => 'simple',
+			),
+			'name' => array(
+				'type' => 'varchar',
+				'length' => 256,
+				'default' => NULL,
+			),
+			'created' => array(
+				'type' => 'int',
+				'size' => 'big',
+				'default' => 0,
+			),
+			'status' => array(
+				'type' => 'int',
+				'default' => 0,
+			),
+		),
+		'primary key' => array('gid'),
+	);
+
+	$schema['gate_links'] = array(
+		'description' => 'A list of all of the links that have been assigned to a gate',
+		'fields' => array(
+			'lid' => array(
+				'type' => 'serial',
+				'not null' => TRUE,
+			),
+			'gid' => array(
+				'type' => 'int',
+			),
+			'link_type' => array(
+				'type' => 'varchar',
+				'length' => 64,
+				'default' => 'uri',
+			),
+			'value' => array(
+				'type' => 'text',
+				'default' => NULL,
+			),
+			'created' => array(
+				'type' => 'int',
+				'size' => 'big',
+			),
+			'status' => array(
+				'type' => 'int',
+			),
+		),
+		'primary key' => array('lid'),
+	);
+
+	$schema['gate_authenticated_login_info'] = array(
+		'description' => 'Login instructions for using drupal authenticated user accounts for gating',
+		'fields' => array(
+			'gid' => array(
+				'type' => 'int',
+				'not null' => TRUE,
+			),
+			'roles' => array(
+				'type' => 'varchar',
+				'length' => 128,
+				'default' => '',
+			),
+		),
+		'primary key' => array('gid'),
+	);
+
+	$schema['gate_unauthenticated_login_info'] = array(
+		'description' => 'Login information for using individual, but nonauthenticated accounts for login',
+		'fields' => array(
+			'aid' => array(
+				'type' => 'serial',
+				'not null' => TRUE,
+			),
+			'gid' => array(
+				'type' => 'int',
+			),
+			'username' => array(
+				'type' => 'varchar',
+				'length' => 256,
+				'default' => '',
+			),
+			'password' => array(
+				'type' => 'varchar',
+				'length' => 256,
+				'default' => '',
+			),
+		),
+		'primary key' => array('aid'),
+	);
+
+	$schema['gate_simple_login_info'] = array(
+		'description' => 'Login information for using the simple login process, requiring only a password',
+		'fields' => array(
+			'gid' => array(
+				'type' => 'int',
+				'not null' => TRUE,
+			),
+			'password' => array(
+				'type' => 'varchar',
+				'length' => 256,
+				'default' => '',
+			),
+		),
+		'primary key' => array('gid'),
+	);
+
+
+	return $schema;
+}
+
+
+function gate_uninstall() {
+	db_drop_table('gate_simple_login_info');
+	db_drop_table('gate_unauthenticated_login_info');
+	db_drop_table('gate_authenticated_login_info');
+	db_drop_table('gate_links');
+	db_drop_table('gate_gates');
+}

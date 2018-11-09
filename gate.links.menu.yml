@@ -1,0 +1,13 @@
+gate.gate_admin_landing:
+  title: 'Gate Configuration'
+  description: 'Gate Configuration Options'
+  parent: system.admin_config_development
+  route_name: gate.gate_admin_landing
+  weight: 100
+
+gate.node_admin:
+  title: 'Gate'
+  description: 'Node Options'
+  parent: entity.node.canonical
+  route_name: gate.node_admin
+  weight: 25

@@ -1,0 +1,6 @@
+name: HMP Gate
+description: HMP Gating module.  Gate pages by password or user login, or grouped logins
+package: HMP Custom
+type: module
+core: 8.x
+version: 1.1
