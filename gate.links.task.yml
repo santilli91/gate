@@ -1,0 +1,5 @@
+gate.node_admin:
+  route_name : gate.node_admin
+  title: Gate
+  base_route: entity.node.canonical
+  weight: 10

@@ -1,0 +1,162 @@
+<?php
+
+use Drupal\Core\Routing\TrustedRedirectResponse;
+
+
+
+function gate_preprocess_page(&$variables) {
+	$gid = null;
+	$path = $_SERVER['REQUEST_URI'];
+	if(
+		!(strpos($path,'admin') !== FALSE) &&
+		!(strpos($path,'history') !== FALSE) &&
+		!(strpos($path,'user') !== FALSE) &&
+		!(strpos($path,'edit') !== FALSE) &&
+		!(strpos($path,'quickedit') !== FALSE)
+	) {
+		//If there is an active gate all gate running, and it has reached its view count limit
+		$gid = getAllGate();
+
+		//If node page, check to see if gate exists
+		if(!$gid) {
+			if($nid = \Drupal::routeMatch()->getRawParameter('node')) {
+				$gid = getGateByNID($nid);
+				if(!$gid)
+					$gid = getGateByTID($nid);
+			}
+		}
+		//If no gate already exists, check for gate by path
+		if(!$gid) {
+			$gid = getGateByPath($path);
+		}
+
+		//If the current page is associated with a gate
+		if($gid) {
+			//Prevent the gate from getting cached
+			\Drupal::service('page_cache_kill_switch')->trigger();
+			
+			//If the gate requires drupal login
+			if($gid['gate_type'] == 'drupal') {
+				if(\Drupal::currentUser()->id() == 0) {
+					$request = \Drupal::request();
+  					$route_match = \Drupal::routeMatch();
+					$page_title = \Drupal::service('title_resolver')->getTitle($request, $route_match->getRouteObject());
+					$login = '/user/login?destination=' . $path;
+					$message = "<article><header><h1>$page_title</h1><h3>You must register before viewing this content</h3></header><p><b>If you already have an account with us, please <a href='$login'>click here to login</a></b></p>";
+
+					$entity = \Drupal::entityTypeManager()->getStorage('user')->create(array());
+					$formObject = \Drupal::entityTypeManager()
+					  ->getFormObject('user', 'register')
+					  ->setEntity($entity);
+					$form = \Drupal::formBuilder()->getForm($formObject);
+					$form_rendered = \Drupal::service('renderer')->render($form);
+
+					/*$form = Drupal::formBuilder()->getForm(Drupal\user\Form\UserLoginForm::class); 
+				    $render = Drupal::service('renderer');
+				    $message .= $render->renderPlain($form);*/
+				    $message .= $form_rendered . '</article>';
+					$variables['page']['main_middle'] = t($message);
+					//$response =  new TrustedRedirectResponse('/user/register?destination=' . $path);
+					//$response->send();
+				}
+			}
+
+			//If the gate is handled by simple login, or username/password (non-drupal)
+			else {
+				if(!$_COOKIE['gate:' . $gid['gid']]) {
+					$form_obj = new \Drupal\gate\Form\Gate(array('test'=>'tessssst','gid'=>$gid['gid'],'name'=>$gid['name']));
+					$form = \Drupal::formBuilder()->getForm($form_obj);
+					//echo '<pre>';print_r($variables['page']['content']);echo'</pre>';
+					$variables['page']['main_middle'] = $form;
+				} else 
+					setcookie('gate:' . $gid['gid'], 1, time()+36000,'/');
+			}
+		}
+		
+	}
+}
+
+
+//Given a path, return a gate
+function getGateByPath($path) {
+		
+	$query = \Drupal::database()->select('gate_links', 'l');
+	$query->join('gate_gates','g','g.gid=l.gid');
+	$query->fields('g', ['gid','gate_type','name']);
+	$query->condition('l.value', $path,'=');
+	$query->condition('g.status',1,'=');
+	$query->condition('link_type','uri','=');
+	$query->condition('l.status',1,'=');
+	$result = $query->execute()->fetchAssoc();
+	return $result;
+}
+
+
+//Given a node id, return a gate
+function getGateByNID($nid) {
+	$query = \Drupal::database()->select('gate_links', 'l');
+	$query->join('gate_gates','g','g.gid=l.gid');
+	$result = $query
+		->fields('g', ['gid','gate_type','name'])
+		->condition('l.value', $nid,'=')
+		->condition('g.status',1,'=')
+		->condition('link_type','node','=')
+		->condition('l.status',1,'=')
+		->execute()->fetchAssoc();
+	return $result;
+}
+
+//Given the node id, return a gate based on Taxonomy Term
+function getGateByTID($nid) {
+	$query = \Drupal::database()->select('gate_links','l');
+	$query->join('taxonomy_index','td','td.tid = l.value');
+	$query->join('gate_gates','g','g.gid=l.gid');
+	$result = $query
+		->fields('g',[])
+		->condition('td.nid',$nid,'=')
+		->condition('g.status',1,'=')
+		->condition('l.link_type','entity_term','=')
+		->execute()->fetchAssoc();
+	return $result;
+}
+
+
+//Given a gate id, return info about the gate
+function getGateByID($gid) {
+	$query = \Drupal::database()->select('gate_gates','g');
+	$query->fields('g',['gid','gate_type','name']);
+	$query->condition('g.gid',$gid,'=');
+	$result = $query->execute()->fetchAssoc();
+	return $result;
+}
+
+//Get info for an all gate, return info if it is time to gate, update/set cookie if not qquite there
+function getAllGate() {
+	$query = \Drupal::database()->select('gate_links','l');
+	$query->join('gate_gates','g','g.gid=l.gid');
+	$result = $query
+		->fields('g',[])
+		->fields('l',['value'])
+		->condition('g.status',1,'=')
+		->condition('l.link_type','all','=')
+		->execute()->fetchAssoc();
+
+	if($count = $result['value']) {
+		\Drupal::service('page_cache_kill_switch')->trigger();
+
+		if($value = $_COOKIE['gate_all_gate']) {
+
+			if($value >= $count) {
+				return $result;
+			}
+			else {
+				setcookie('gate_all_gate', ++$value, time()+36000,'/');
+			}
+		}
+		else if($count == 1) 
+			return $result;
+		else  
+			setcookie('gate_all_gate',1,time()+36000,'/');
+	}
+	return null;
+}
